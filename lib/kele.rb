@@ -14,4 +14,10 @@ module Kele
     puts @auth_token
   end
 
+  def get_me
+    response = self.class.post(api_url("users/me"), headers: { "authorization" => @auth_token })
+    @user = JSON.parse(response.body)
+    @user_id = response["current_enrollment"]["id"]
+  end
+
 end
