@@ -1,31 +1,35 @@
 require 'httparty'
 require 'json'
 require 'openssl'
+require './lib/roadmap'
 OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
 
 class Kele
   include HTTParty
+  include Roadmap
   base_uri "https://www.bloc.io/api/v1/"
 
   def initialize(email, password)
-    response = self.class.post(api_url("sessions"), body: { username: email, password: password })
+    response = self.class.post(api_url("sessions"), body: { email: email, password: password })
     raise 'Invalid email or password, please try again.' if response.code == 401
     @auth_token = response["auth_token"]
     puts response.code
   end
 
   def get_me
-    response = self.class.post(api_url("users/me"), headers: { "authorization" => @auth_token })
+    response = self.class.get(api_url("users/me"), headers: { "authorization" => @auth_token })
     @user = JSON.parse(response.body)
-    @user_id = response["current_enrollment"]["id"]
+    @user_id = @user["current_enrollment"]
+    # My user ID is 41521
   end
 
   def get_mentor_availability(mentor_id)
-    response = self.class.post(api_url("mentors/#{mentor_id}/student_availability"), headers: { "authorization" => @auth_token})
+    # My mentor ID is 2366806
+    response = self.class.get(api_url("mentors/#{mentor_id}/student_availability"), headers: { "authorization" => @auth_token}).to_a
     availability = []
-    response.each do |response|
-      if response["booked"] == nil
-        availability.push(response)
+    response.each do |slot|
+      if slot["booked"] == nil
+        availability.push(slot)
       end
     end
     puts availability
@@ -52,8 +56,8 @@ class Kele
     response.success? puts "Your message has been sent!"
   end
 
-  def get_remaining_checkpoints()
-    response = self.class.get(api_url("#{@user_id}/checkpoints_remaining_in_section"), headers: { "authorization" => @auth_token})
+  def get_remaining_checkpoints(chain_id)
+    response = self.class.get(api_url("/enrollment_chains/#{chain_id}/checkpoints_remaining_in_section"), headers: { "authorization" => @auth_token })
     @remaining_checkpoints = JSON.parse(response.body)
   end
 
